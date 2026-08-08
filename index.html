@@ -510,14 +510,17 @@ async function fetchPhoto(d){
     if(!r.ok) throw 0;
     const j=await r.json();
     let src=(j.thumbnail&&j.thumbnail.source)||null;
-    if(src) src=src.replace(/\/(\d+)px-/, "/480px-");
+    /* 元画像が640px以上ある場合のみ640pxに拡大（小さい画像を拡大要求するとエラーになるため） */
+    if(src&&j.originalimage&&j.originalimage.width>=640){
+      src=src.replace(/\/(\d+)px-/, "/640px-");
+    }
     photoURL[d.n]=src;
   }catch(e){ photoURL[d.n]=null; }
 }
 
 function artHTML(d){
   if(photoMode&&photoURL[d.n]){
-    return `<img class="photo" src="${photoURL[d.n]}" alt="${d.n}" loading="lazy" onerror="this.outerHTML=DINO_FALLBACK['${d.n}']">`;
+    return `<img class="photo" src="${photoURL[d.n]}" alt="${d.n}" loading="lazy" onerror="this.onerror=null;this.outerHTML=DINO_FALLBACK['${d.n}']">`;
   }
   return dinoSVG(d);
 }
