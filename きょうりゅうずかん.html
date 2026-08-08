@@ -1,0 +1,572 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>きょうりゅう ずかん</title>
+<style>
+:root{
+  --green:#2D6A4F; --leaf:#74C69D; --bg:#E9F7EC;
+  --orange:#FF8552; --yellow:#FFD166; --sky:#BDE8F5;
+  --ink:#27403A; --card:#FFFFFF;
+}
+*{box-sizing:border-box; -webkit-tap-highlight-color:transparent;}
+html,body{margin:0; padding:0;}
+body{
+  font-family:'Hiragino Maru Gothic ProN','BIZ UDPGothic','Yu Gothic UI',system-ui,sans-serif;
+  background:linear-gradient(#CDEFFB 0%, var(--bg) 45%);
+  color:var(--ink); min-height:100vh; font-weight:700;
+}
+header{
+  text-align:center; padding:14px 10px 6px;
+}
+h1{
+  margin:0; font-size:clamp(26px,7vw,40px); letter-spacing:2px; color:var(--green);
+  text-shadow:2px 2px 0 #fff;
+}
+h1 .egg{display:inline-block; animation:wobble 3s infinite;}
+@keyframes wobble{0%,100%{transform:rotate(-8deg)}50%{transform:rotate(8deg)}}
+.tabs{
+  display:flex; gap:10px; justify-content:center; padding:10px; position:sticky; top:0; z-index:5;
+}
+.tab{
+  border:0; border-radius:999px; padding:12px 26px; font-size:20px; font-weight:800;
+  font-family:inherit; cursor:pointer; background:#fff; color:var(--green);
+  box-shadow:0 4px 0 rgba(45,106,79,.25);
+}
+.tab.on{background:var(--green); color:#fff; box-shadow:0 4px 0 #1B4332;}
+.tab:active{transform:translateY(3px); box-shadow:none;}
+main{max-width:900px; margin:0 auto; padding:8px 12px 90px;}
+/* ---- ずかん ---- */
+.grid{
+  display:grid; grid-template-columns:repeat(auto-fill,minmax(150px,1fr)); gap:12px;
+}
+.dcard{
+  background:var(--card); border-radius:20px; padding:8px 6px 10px; text-align:center;
+  border:3px solid var(--leaf); cursor:pointer; position:relative;
+  transition:transform .1s;
+}
+.dcard:active{transform:scale(.95);}
+.dcard svg{width:100%; height:96px;}
+.dname{font-size:15px; font-weight:800; line-height:1.2;}
+.badge{
+  position:absolute; top:6px; right:8px; font-size:18px;
+}
+.foodtag{
+  position:absolute; top:6px; left:8px; font-size:16px;
+}
+/* ---- 詳細モーダル ---- */
+.overlay{
+  position:fixed; inset:0; background:rgba(39,64,58,.55); display:none;
+  align-items:center; justify-content:center; z-index:20; padding:14px;
+}
+.overlay.show{display:flex;}
+.detail{
+  background:#fff; border-radius:26px; max-width:440px; width:100%;
+  padding:16px; text-align:center; border:5px solid var(--yellow);
+  max-height:92vh; overflow:auto;
+}
+.detail svg{width:78%; max-width:280px; height:auto;}
+.detail .yomi{color:var(--orange); font-size:15px; margin:2px 0 0;}
+.detail h2{margin:2px 0 6px; font-size:26px; color:var(--green);}
+.facts{
+  display:flex; gap:8px; justify-content:center; flex-wrap:wrap; margin:8px 0;
+}
+.fact{
+  background:var(--bg); border-radius:14px; padding:6px 12px; font-size:15px;
+}
+.hitokoto{
+  background:#FFF4D9; border-radius:14px; padding:10px; font-size:16px; line-height:1.5;
+}
+.btnrow{display:flex; gap:10px; justify-content:center; margin-top:12px;}
+.bigbtn{
+  border:0; border-radius:999px; padding:12px 22px; font-size:19px; font-weight:800;
+  font-family:inherit; cursor:pointer; box-shadow:0 4px 0 rgba(0,0,0,.2);
+}
+.bigbtn:active{transform:translateY(3px); box-shadow:none;}
+.speak{background:var(--orange); color:#fff;}
+.close{background:#E0E0E0; color:var(--ink);}
+/* ---- クイズ ---- */
+.quizbox{
+  background:#fff; border-radius:26px; border:4px solid var(--leaf);
+  padding:16px; text-align:center; max-width:520px; margin:0 auto;
+}
+.quizbox svg{width:70%; max-width:260px; height:auto;}
+.qtext{font-size:21px; margin:4px 0 10px;}
+.choices{display:grid; gap:10px;}
+.choice{
+  border:0; border-radius:18px; padding:14px 10px; font-size:20px; font-weight:800;
+  font-family:inherit; cursor:pointer; background:var(--sky); color:var(--ink);
+  box-shadow:0 4px 0 rgba(0,0,0,.15);
+}
+.choice:active{transform:translateY(3px); box-shadow:none;}
+.choice.good{background:var(--yellow);}
+.choice.bad{background:#FFB4A8;}
+.result{font-size:30px; min-height:44px; margin-top:8px; font-weight:900;}
+.scorebar{
+  display:flex; justify-content:center; gap:18px; font-size:18px; margin-bottom:10px;
+}
+.scorebar span{background:#fff; border-radius:999px; padding:6px 16px; border:2px solid var(--leaf);}
+.next{background:var(--green); color:#fff; margin-top:10px; display:none;}
+.next.show{display:inline-block;}
+/* ---- がんばりカード ---- */
+.stampnote{
+  text-align:center; font-size:17px; background:#fff; border-radius:16px;
+  padding:10px; margin-bottom:12px; border:3px dashed var(--leaf);
+}
+/* お祝い */
+.confetti{
+  position:fixed; top:-20px; font-size:24px; z-index:50; pointer-events:none;
+  animation:fall 1.6s linear forwards;
+}
+@keyframes fall{to{transform:translateY(110vh) rotate(540deg); opacity:.2;}}
+.hills{
+  position:fixed; bottom:0; left:0; right:0; height:70px; z-index:-1;
+  background:radial-gradient(circle at 20% 120%, var(--leaf) 0 60px, transparent 61px),
+             radial-gradient(circle at 55% 130%, var(--green) 0 80px, transparent 81px),
+             radial-gradient(circle at 85% 120%, var(--leaf) 0 55px, transparent 56px);
+}
+img.photo{
+  width:100%; height:96px; object-fit:contain; border-radius:12px; background:#fff;
+}
+.detail img.photo{width:88%; height:180px; max-width:340px;}
+.quizbox img.photo{width:80%; height:190px; max-width:300px;}
+.credit{
+  text-align:center; font-size:13px; color:#5E7A6E; margin:0 0 4px; min-height:16px;
+}
+@media (prefers-reduced-motion: reduce){
+  *{animation:none !important; transition:none !important;}
+}
+</style>
+</head>
+<body>
+<div class="hills"></div>
+<header>
+  <h1><span class="egg">🥚</span> きょうりゅう ずかん <span class="egg">🦖</span></h1>
+</header>
+<nav class="tabs">
+  <button class="tab on" id="tabZukan" onclick="showZukan()">📖 ずかん</button>
+  <button class="tab" id="tabQuiz" onclick="showQuiz()">❓ クイズ</button>
+  <button class="tab" id="modeBtn" onclick="togglePhoto()">📷 しゃしん</button>
+</nav>
+<p class="credit" id="photoStatus"></p>
+<main>
+  <section id="zukan">
+    <div class="stampnote">クイズに せいかいすると ⭐がつくよ！ <span id="starCount"></span></div>
+    <div class="grid" id="grid"></div>
+  </section>
+  <section id="quiz" style="display:none">
+    <div class="scorebar">
+      <span>⭕ せいかい <b id="okNum">0</b></span>
+      <span>🔥 れんぞく <b id="streakNum">0</b></span>
+    </div>
+    <div class="quizbox">
+      <div id="quizArt"></div>
+      <p class="qtext">この きょうりゅうの なまえは？</p>
+      <div class="choices" id="choices"></div>
+      <div class="result" id="result"></div>
+      <button class="bigbtn next" id="nextBtn" onclick="newQuiz()">つぎの もんだい ▶</button>
+    </div>
+  </section>
+</main>
+<div class="overlay" id="overlay" onclick="if(event.target===this)closeDetail()">
+  <div class="detail" id="detailBox"></div>
+</div>
+
+<script>
+/* ================= 恐竜データ =================
+   type: rex/raptor/sauro/cera/stego/anky/spino/ptero/marine/pachy/hadro
+   c:[からだ, おなか, アクセント] */
+const DINOS=[
+ {n:"ティラノサウルス", y:"てぃらのさうるす", type:"rex", c:["#5C8A4E","#D8E8B0","#3E6B38"], len:"13m", food:"にく", era:"はくあき", f:"きょうりゅうの おうさま！かむ ちからは ナンバーワン！"},
+ {n:"トリケラトプス", y:"とりけらとぷす", type:"cera", c:["#C98A5B","#F2D6B3","#8A5A3B"], len:"9m", food:"くさ", era:"はくあき", f:"つのが 3ぼん！おおきな フリルで みをまもるよ。"},
+ {n:"ステゴサウルス", y:"すてごさうるす", type:"stego", c:["#7BA05B","#E4EFC2","#E0703A"], len:"9m", food:"くさ", era:"ジュラき", f:"せなかの いたが かっこいい！しっぽの トゲは ぶきだよ。"},
+ {n:"ブラキオサウルス", y:"ぶらきおさうるす", type:"sauro", c:["#8FA9C4","#DDE9F2","#5C7A99"], len:"25m", food:"くさ", era:"ジュラき", f:"くびが ながーい！たかい きの はっぱを たべるよ。"},
+ {n:"プテラノドン", y:"ぷてらのどん", type:"ptero", c:["#E0A24B","#F7E0B5","#A86F2E"], len:"7m", food:"さかな", era:"はくあき", f:"そらを とぶ！おおきな とさかが めじるしだよ。"},
+ {n:"スピノサウルス", y:"すぴのさうるす", type:"spino", c:["#6B8F9C","#D3E4E8","#E0703A"], len:"15m", food:"さかな", era:"はくあき", f:"せなかに おおきな ほ！およぎが とくいなんだ。"},
+ {n:"ヴェロキラプトル", y:"う゛ぇろきらぷとる", type:"raptor", c:["#B7793F","#EED9B2","#7A4E24"], len:"2m", food:"にく", era:"はくあき", f:"ちいさいけど すばやい！あしの かぎづめが すごいよ。"},
+ {n:"アンキロサウルス", y:"あんきろさうるす", type:"anky", c:["#8B7355","#D9C7A8","#5E4A35"], len:"8m", food:"くさ", era:"はくあき", f:"よろいを きた きょうりゅう！しっぽの ハンマーで ドン！"},
+ {n:"パラサウロロフス", y:"ぱらさうろろふす", type:"hadro", c:["#7FA86B","#E1EFC8","#4E7A3E"], len:"10m", food:"くさ", era:"はくあき", f:"あたまの とさかで パオーンと おとを だすよ。"},
+ {n:"ディプロドクス", y:"でぃぷろどくす", type:"sauro", c:["#A2917A","#E8DECB","#75664F"], len:"27m", food:"くさ", era:"ジュラき", f:"しっぽが ムチみたいに ながーい きょうりゅうだよ。"},
+ {n:"アロサウルス", y:"あろさうるす", type:"rex", c:["#B05A4A","#EDC9B5","#7E3B2E"], len:"9m", food:"にく", era:"ジュラき", f:"ジュラきの ハンター！めの うえに ちいさな つのが あるよ。"},
+ {n:"イグアノドン", y:"いぐあのどん", type:"hadro", c:["#8E9E5A","#E6EDC0","#5F7038"], len:"10m", food:"くさ", era:"はくあき", f:"おやゆびが トゲに なっているよ。さいしょに みつかった なかまだよ。"},
+ {n:"パキケファロサウルス", y:"ぱきけふぁろさうるす", type:"pachy", c:["#C4885E","#F2DCC4","#8A5A38"], len:"4.5m", food:"くさ", era:"はくあき", f:"あたまが とっても かたい！ゴッツンこ するよ。"},
+ {n:"モササウルス", y:"もささうるす", type:"marine", c:["#4E7A99","#CFE5F0","#2E5670"], len:"15m", food:"にく", era:"はくあき", f:"うみの おうさま！おおきな くちで ガブリ！"},
+ {n:"フクイラプトル", y:"ふくいらぷとる", type:"raptor", c:["#4E8A7A","#CDEADF","#2E6355"], len:"4.2m", food:"にく", era:"はくあき", f:"ふくいけんで みつかった！はしるのが はやい ハンターだよ。"},
+ {n:"フクイサウルス", y:"ふくいさうるす", type:"hadro", c:["#6E9E4E","#DCEFC2","#48702F"], len:"4.7m", food:"くさ", era:"はくあき", f:"ふくいけん うまれ！はっぱを もぐもぐ たべるよ。"},
+ {n:"フクイティタン", y:"ふくいてぃたん", type:"sauro", c:["#7A8FB0","#DAE3F0","#54688A"], len:"10m", food:"くさ", era:"はくあき", f:"ふくいけんで みつかった くびながさん！なまえは「ふくいの きょじん」って いみだよ。"},
+ {n:"カルノタウルス", y:"かるのたうるす", type:"rex", c:["#A05252","#EDC2B5","#6E3535"], len:"8m", food:"にく", era:"はくあき", f:"めの うえに ウシみたいな つのが 2ほん あるよ。"},
+ {n:"ギガノトサウルス", y:"ぎがのとさうるす", type:"rex", c:["#6E7A52","#DCE3C0","#4A5535"], len:"13m", food:"にく", era:"はくあき", f:"ティラノサウルスと おなじくらい おおきい ハンター！"},
+ {n:"テリジノサウルス", y:"てりじのさうるす", type:"raptor", c:["#9E8AB8","#E8DEF2","#6E5A8A"], len:"10m", food:"くさ", era:"はくあき", f:"つめの ながさは 70cm！でも やさしい くさしょくだよ。"},
+ {n:"デイノニクス", y:"でいのにくす", type:"raptor", c:["#5A7AA0","#C8DCEF","#3A567A"], len:"3m", food:"にく", era:"はくあき", f:"なかまと きょうりょくして かりを するよ。"},
+ {n:"オヴィラプトル", y:"おう゛ぃらぷとる", type:"raptor", c:["#E0B04B","#F7E8C0","#A8802E"], len:"2m", food:"にく", era:"はくあき", f:"たまごを だいじに あたためる やさしい ママ・パパだよ。"},
+ {n:"プレシオサウルス", y:"ぷれしおさうるす", type:"marine", c:["#5A9EA8","#CDEAEF","#3A737A"], len:"3.5m", food:"さかな", era:"ジュラき", f:"くびの ながい うみの いきもの。スイスイ およぐよ。"},
+ {n:"フタバサウルス", y:"ふたばさうるす", type:"marine", c:["#7A9EC4","#DCE9F5","#54739A"], len:"7m", food:"さかな", era:"はくあき", f:"にほんで みつかった くびながりゅう！ふたばすずきりゅうとも いうよ。"},
+ {n:"アルゼンチノサウルス", y:"あるぜんちのさうるす", type:"sauro", c:["#B08A6E","#EFDCC8","#7A5E48"], len:"35m", food:"くさ", era:"はくあき", f:"りくで いちばん おおきい きょうりゅうの ひとつだよ！"},
+ {n:"マメンチサウルス", y:"まめんちさうるす", type:"sauro", c:["#8AA88A","#DCEFD8","#5E7A5E"], len:"22m", food:"くさ", era:"ジュラき", f:"くびの ながさだけで 10m いじょう！すごいでしょ。"},
+ {n:"ケツァルコアトルス", y:"けつぁるこあとるす", type:"ptero", c:["#C47A8A","#F2D8DF","#8A5460"], len:"10m", food:"にく", era:"はくあき", f:"そらを とぶ いきもので さいだいきゅう！ひこうきみたいだね。"},
+ {n:"ディロフォサウルス", y:"でぃろふぉさうるす", type:"rex", c:["#5AA07A","#C8EFD8","#3A7A55"], len:"7m", food:"にく", era:"ジュラき", f:"あたまに 2まいの とさかが あるよ。"},
+ {n:"コンプソグナトゥス", y:"こんぷそぐなとぅす", type:"raptor", c:["#A0B85A","#E8F2C8","#7A8A3A"], len:"1m", food:"にく", era:"ジュラき", f:"ニワトリくらいの ちいさな きょうりゅうだよ。"},
+ {n:"ガリミムス", y:"がりみむす", type:"raptor", c:["#C4A85E","#F2E8C8","#8A7638"], len:"6m", food:"くさ", era:"はくあき", f:"ダチョウみたいに はしるのが とくい！じそく60km！"},
+ {n:"スティラコサウルス", y:"すてぃらこさうるす", type:"cera", c:["#B06E5A","#EFD8C8","#7A4A3A"], len:"5.5m", food:"くさ", era:"はくあき", f:"フリルの まわりに ながい トゲが いっぱい！"},
+ {n:"プロトケラトプス", y:"ぷろとけらとぷす", type:"cera", c:["#D8B08A","#F5E8D8","#A0805E"], len:"2m", food:"くさ", era:"はくあき", f:"つのは ないけど フリルは りっぱ！ヒツジくらいの おおきさだよ。"},
+ {n:"マイアサウラ", y:"まいあさうら", type:"hadro", c:["#C49E7A","#F2E4D0","#8A6E52"], len:"9m", food:"くさ", era:"はくあき", f:"「よい ママ とかげ」という いみ。こどもを だいじに そだてるよ。"},
+ {n:"エドモントサウルス", y:"えどもんとさうるす", type:"hadro", c:["#9E8A5A","#EDE3C4","#6E5E3A"], len:"12m", food:"くさ", era:"はくあき", f:"はが 1000ぼん いじょう！もぐもぐ めいじんだよ。"},
+ {n:"ケントロサウルス", y:"けんとろさうるす", type:"stego", c:["#8A6EA0","#E0D4EF","#E0703A"], len:"5m", food:"くさ", era:"ジュラき", f:"ステゴサウルスの なかま。しっぽの トゲが ながいよ。"},
+ {n:"バリオニクス", y:"ばりおにくす", type:"spino", c:["#7A9E8A","#D8EFDF","#E0703A"], len:"9m", food:"さかな", era:"はくあき", f:"おおきな かぎづめで さかなを つかまえるよ。"},
+ {n:"タルボサウルス", y:"たるぼさうるす", type:"rex", c:["#8A6E4E","#EDD8B8","#5E4830"], len:"10m", food:"にく", era:"はくあき", f:"アジアの ティラノサウルスと よばれる ハンターだよ。"},
+ {n:"ケラトサウルス", y:"けらとさうるす", type:"rex", c:["#6E8A9E","#CFE0EA","#48606E"], len:"6m", food:"にく", era:"ジュラき", f:"はなの うえに つのが 1ぽん あるよ。"},
+ {n:"メガロサウルス", y:"めがろさうるす", type:"rex", c:["#9E7A5E","#EFDCC4","#6E5440"], len:"7m", food:"にく", era:"ジュラき", f:"せかいで さいしょに なまえが ついた きょうりゅうだよ。"},
+ {n:"アルバートサウルス", y:"あるばーとさうるす", type:"rex", c:["#7A5E8A","#DFD0EA","#54406E"], len:"9m", food:"にく", era:"はくあき", f:"ティラノサウルスの しんせき。はしるのが はやいよ。"},
+ {n:"アクロカントサウルス", y:"あくろかんとさうるす", type:"rex", c:["#5E8A6E","#CFEAD8","#3E6650"], len:"11m", food:"にく", era:"はくあき", f:"せなかが すこし もりあがった おおきな ハンターだよ。"},
+ {n:"ヘレラサウルス", y:"へれらさうるす", type:"rex", c:["#A8845E","#F0E0C8","#7A5E40"], len:"4m", food:"にく", era:"さんじょうき", f:"いちばん むかしの きょうりゅうの ひとつだよ。"},
+ {n:"ユタラプトル", y:"ゆたらぷとる", type:"raptor", c:["#5E7A8A","#D0E0EA","#40586E"], len:"6m", food:"にく", era:"はくあき", f:"ラプトルの なかまで いちばん おおきい！つめは 20cm いじょう！"},
+ {n:"ミクロラプトル", y:"みくろらぷとる", type:"raptor", c:["#4E5E8A","#C8D4EF","#34426E"], len:"0.8m", food:"にく", era:"はくあき", f:"はねが 4まい！きから きへ すべるように とぶよ。"},
+ {n:"トロオドン", y:"とろおどん", type:"raptor", c:["#8A9E5E","#E0EAC8","#606E40"], len:"2.4m", food:"にく", era:"はくあき", f:"きょうりゅうの なかで あたまが いいと いわれているよ。"},
+ {n:"コエロフィシス", y:"こえろふぃしす", type:"raptor", c:["#5E9E8A","#C8EFDF","#40705E"], len:"3m", food:"にく", era:"さんじょうき", f:"ほっそり からだで すばやく はしる むかしの きょうりゅうだよ。"},
+ {n:"エオラプトル", y:"えおらぷとる", type:"raptor", c:["#C48A5E","#F2DFC8","#8A6040"], len:"1m", food:"にく", era:"さんじょうき", f:"「よあけの どろぼう」という いみ。さいしょきの きょうりゅうだよ。"},
+ {n:"アーケオプテリクス", y:"あーけおぷてりくす", type:"raptor", c:["#7A6E9E","#DDD8EF","#544A70"], len:"0.5m", food:"にく", era:"ジュラき", f:"しそちょうとも いうよ。とりの せんぞだと いわれているよ。"},
+ {n:"デイノケイルス", y:"でいのけいるす", type:"raptor", c:["#9E8A6E","#EFE4D0","#70604A"], len:"11m", food:"くさ", era:"はくあき", f:"「おそろしい て」という いみ。うでの ながさは 2.4m！"},
+ {n:"アパトサウルス", y:"あぱとさうるす", type:"sauro", c:["#6E8A7A","#D4EADF","#4A6055"], len:"22m", food:"くさ", era:"ジュラき", f:"どっしり おもたい くびながさん。しっぽで ムチの おとを だせたかも！"},
+ {n:"ブロントサウルス", y:"ぶろんとさうるす", type:"sauro", c:["#8A7A6E","#EADFD4","#605248"], len:"22m", food:"くさ", era:"ジュラき", f:"「かみなり とかげ」という いみだよ。ドシン ドシン！"},
+ {n:"カマラサウルス", y:"かまらさうるす", type:"sauro", c:["#9E9E6E","#EFEFD0","#70704A"], len:"18m", food:"くさ", era:"ジュラき", f:"おおきな はなの あなが とくちょうの くびながさんだよ。"},
+ {n:"アマルガサウルス", y:"あまるがさうるす", type:"sauro", c:["#6E9E9E","#D0EFEF","#4A7070"], len:"12m", food:"くさ", era:"はくあき", f:"くびに 2れつの トゲが ならんだ めずらしい くびながさんだよ。"},
+ {n:"プラテオサウルス", y:"ぷらておさうるす", type:"sauro", c:["#B09E7A","#F2EADC","#7A6E54"], len:"8m", food:"くさ", era:"さんじょうき", f:"くびながさんの せんぞ。2ほんあしでも あるけたよ。"},
+ {n:"タンバティタニス", y:"たんばてぃたにす", type:"sauro", c:["#8A9EC4","#DFE7F5","#60739A"], len:"13m", food:"くさ", era:"はくあき", f:"ひょうごけんで みつかった「たんばりゅう」だよ！"},
+ {n:"カスモサウルス", y:"かすもさうるす", type:"cera", c:["#C49E6E","#F5EAD8","#8A6E48"], len:"5m", food:"くさ", era:"はくあき", f:"フリルに おおきな あなが 2つ あいているよ。"},
+ {n:"ペンタケラトプス", y:"ぺんたけらとぷす", type:"cera", c:["#9E6E5E","#EFD8D0","#704A40"], len:"7m", food:"くさ", era:"はくあき", f:"「5ほんづの かお」という いみ。フリルが とっても おおきい！"},
+ {n:"セントロサウルス", y:"せんとろさうるす", type:"cera", c:["#B07A6E","#F2DFD8","#7A5448"], len:"5.5m", food:"くさ", era:"はくあき", f:"はなの うえに りっぱな つのが 1ぽん。むれで くらしたよ。"},
+ {n:"プシッタコサウルス", y:"ぷしったこさうるす", type:"cera", c:["#8AA07A","#DFEFD4","#5E7052"], len:"2m", food:"くさ", era:"はくあき", f:"オウムみたいな くちばし。トリケラトプスの せんぞだよ。"},
+ {n:"トゥオジャンゴサウルス", y:"とぅおじゃんごさうるす", type:"stego", c:["#6E7A9E","#D4DCEF","#E0703A"], len:"7m", food:"くさ", era:"ジュラき", f:"ちゅうごくで みつかった ステゴサウルスの なかまだよ。"},
+ {n:"ノドサウルス", y:"のどさうるす", type:"anky", c:["#7A8A5E","#DCEACC","#525E40"], len:"6m", food:"くさ", era:"はくあき", f:"よろいは あるけど しっぽに ハンマーは ないよ。"},
+ {n:"ミンミ", y:"みんみ", type:"anky", c:["#B0A05E","#F2EACC","#7A7040"], len:"3m", food:"くさ", era:"はくあき", f:"オーストラリアの ちいさな よろい きょうりゅう。なまえが かわいいね！"},
+ {n:"スコミムス", y:"すこみむす", type:"spino", c:["#8A9E7A","#DFEFD8","#E0703A"], len:"11m", food:"さかな", era:"はくあき", f:"ワニみたいな くちで さかなを パクッ！"},
+ {n:"オウラノサウルス", y:"おうらのさうるす", type:"spino", c:["#C4A87A","#F5ECD8","#E0703A"], len:"7m", food:"くさ", era:"はくあき", f:"せなかに ほが あるけど くさしょくの やさしい きょうりゅうだよ。"},
+ {n:"ディメトロドン", y:"でぃめとろどん", type:"spino", c:["#A05E5E","#EFD0D0","#E0703A"], len:"3.5m", food:"にく", era:"ペルムき", f:"じつは きょうりゅうじゃない！きょうりゅうより まえの いきものだよ。"},
+ {n:"ランフォリンクス", y:"らんふぉりんくす", type:"ptero", c:["#8A6E5E","#EADCD4","#604A40"], len:"1.2m", food:"さかな", era:"ジュラき", f:"しっぽの さきに ひしがたの はねが あるよ。"},
+ {n:"ディモルフォドン", y:"でぃもるふぉどん", type:"ptero", c:["#6E8A6E","#D4EAD4","#4A604A"], len:"1.4m", food:"さかな", era:"ジュラき", f:"おおきな あたまの よくりゅうだよ。"},
+ {n:"アンハングエラ", y:"あんはんぐえら", type:"ptero", c:["#C48A7A","#F5DFD8","#8A6054"], len:"4.5m", food:"さかな", era:"はくあき", f:"くちの さきに まるい とさかが あるよ。"},
+ {n:"イクチオサウルス", y:"いくちおさうるす", type:"marine", c:["#5E8AA0","#D0E4EF","#40606E"], len:"2m", food:"さかな", era:"ジュラき", f:"イルカに そっくり！うみを スイスイ およぐよ。"},
+ {n:"エラスモサウルス", y:"えらすもさうるす", type:"marine", c:["#6E9EB0","#D4EAF2","#4A6E7A"], len:"14m", food:"さかな", era:"はくあき", f:"くびの ほねが 70こ いじょう！くびなが チャンピオンだよ。"},
+ {n:"ショニサウルス", y:"しょにさうるす", type:"marine", c:["#7A7A9E","#DCDCEF","#54546E"], len:"15m", food:"さかな", era:"さんじょうき", f:"クジラみたいに おおきな うみの いきものだよ。"},
+ {n:"アーケロン", y:"あーけろん", type:"marine", c:["#8A9E5E","#E4EFC8","#606E40"], len:"4m", food:"さかな", era:"はくあき", f:"くるまより おおきい かいの ウミガメだよ！"},
+ {n:"リオプレウロドン", y:"りおぷれうろどん", type:"marine", c:["#4E6E8A","#C8DCEA","#344A60"], len:"7m", food:"にく", era:"ジュラき", f:"うみの ギャング！おおきな くちで なんでも ガブリ。"},
+ {n:"ステゴケラス", y:"すてごけらす", type:"pachy", c:["#9E8A5E","#EFE4C8","#706040"], len:"2.5m", food:"くさ", era:"はくあき", f:"かたい あたまで ゴッツン！ちいさな いしあたまだよ。"},
+ {n:"ドラコレックス", y:"どらこれっくす", type:"pachy", c:["#8A5E6E","#EAD0D8","#60404A"], len:"3m", food:"くさ", era:"はくあき", f:"「ドラゴンの おう」という かっこいい なまえだよ。"},
+ {n:"ランベオサウルス", y:"らんべおさうるす", type:"hadro", c:["#6EA08A","#D4EFE0","#4A705E"], len:"9m", food:"くさ", era:"はくあき", f:"あたまの とさかが オノみたいな かたちだよ。"},
+ {n:"コリトサウルス", y:"こりとさうるす", type:"hadro", c:["#A0906E","#EFE7D4","#70644A"], len:"9m", food:"くさ", era:"はくあき", f:"ヘルメットみたいな とさかで おとを だすよ。"},
+ {n:"カムイサウルス", y:"かむいさうるす", type:"hadro", c:["#5E8AA8","#D0E4F2","#406078"], len:"8m", food:"くさ", era:"はくあき", f:"ほっかいどうで みつかった「むかわりゅう」！ほぼ ぜんしんの ほねが みつかったよ。"},
+ {n:"ヤマトサウルス", y:"やまとさうるす", type:"hadro", c:["#B08A9E","#F2DFEA","#7A6070"], len:"8m", food:"くさ", era:"はくあき", f:"あわじしまで みつかった にほんの きょうりゅうだよ。"},
+ {n:"ニッポノサウルス", y:"にっぽのさうるす", type:"hadro", c:["#7A9E6E","#DCEFD4","#54704A"], len:"4m", food:"くさ", era:"はくあき", f:"「にっぽん」の なまえが ついた きょうりゅうだよ。"}
+];
+
+/* ================= SVGイラスト生成 ================= */
+function eye(x,y,s=1){return `<circle cx="${x}" cy="${y}" r="${7*s}" fill="#fff"/><circle cx="${x+1.5*s}" cy="${y}" r="${3.5*s}" fill="#27403A"/><circle cx="${x+2.5*s}" cy="${y-1.5*s}" r="${1.2*s}" fill="#fff"/>`;}
+function smile(x,y,w=10){return `<path d="M${x} ${y} q ${w/2} ${w/2} ${w} 0" stroke="#27403A" stroke-width="2" fill="none" stroke-linecap="round"/>`;}
+function ground(){return `<ellipse cx="100" cy="128" rx="70" ry="8" fill="rgba(45,106,79,.15)"/>`;}
+
+const ART={
+ rex:c=>`${ground()}
+  <path d="M155 55 q20 -12 30 -2 l-12 8 8 6 -14 4 z" fill="${c[0]}"/>
+  <ellipse cx="95" cy="90" rx="42" ry="30" fill="${c[0]}"/>
+  <ellipse cx="95" cy="98" rx="28" ry="18" fill="${c[1]}"/>
+  <path d="M60 85 q-30 8 -38 30 q18 2 34 -10 z" fill="${c[0]}"/>
+  <circle cx="138" cy="58" r="26" fill="${c[0]}"/>
+  <path d="M150 68 q14 2 16 10 q-10 6 -20 2 z" fill="${c[1]}"/>
+  <rect x="80" y="110" width="12" height="20" rx="6" fill="${c[2]}"/>
+  <rect x="105" y="110" width="12" height="20" rx="6" fill="${c[2]}"/>
+  <path d="M118 88 q10 6 6 14" stroke="${c[2]}" stroke-width="7" fill="none" stroke-linecap="round"/>
+  ${eye(140,52)} ${smile(138,72,12)}
+  <path d="M120 40 l6 -10 5 10 z M132 34 l6 -10 5 10 z" fill="${c[2]}"/>`,
+ raptor:c=>`${ground()}
+  <path d="M150 70 q26 -20 34 -8 l-14 6 6 8 -14 2 z" fill="${c[0]}"/>
+  <ellipse cx="98" cy="92" rx="36" ry="24" fill="${c[0]}"/>
+  <ellipse cx="98" cy="99" rx="24" ry="14" fill="${c[1]}"/>
+  <path d="M68 88 q-32 4 -42 26 q20 4 38 -10 z" fill="${c[0]}"/>
+  <circle cx="132" cy="62" r="20" fill="${c[0]}"/>
+  <path d="M142 70 q12 0 14 8 q-8 5 -17 1 z" fill="${c[1]}"/>
+  <rect x="84" y="108" width="10" height="22" rx="5" fill="${c[2]}"/>
+  <rect x="106" y="108" width="10" height="22" rx="5" fill="${c[2]}"/>
+  <path d="M96 130 l8 4 M116 130 l8 4" stroke="${c[2]}" stroke-width="4" stroke-linecap="round"/>
+  <path d="M118 84 q12 4 8 14" stroke="${c[2]}" stroke-width="6" fill="none" stroke-linecap="round"/>
+  ${eye(134,57,.9)} ${smile(132,73,10)}
+  <path d="M112 48 q8 -12 18 -10 q-4 8 -8 10" fill="${c[2]}"/>`,
+ sauro:c=>`${ground()}
+  <ellipse cx="90" cy="98" rx="44" ry="26" fill="${c[0]}"/>
+  <ellipse cx="90" cy="105" rx="30" ry="15" fill="${c[1]}"/>
+  <path d="M50 95 q-28 6 -36 24 q16 4 34 -8 z" fill="${c[0]}"/>
+  <path d="M120 90 q18 -14 18 -50 q0 -12 10 -12" stroke="${c[0]}" stroke-width="18" fill="none" stroke-linecap="round"/>
+  <circle cx="152" cy="26" r="15" fill="${c[0]}"/>
+  <rect x="66" y="112" width="13" height="18" rx="6" fill="${c[2]}"/>
+  <rect x="100" y="112" width="13" height="18" rx="6" fill="${c[2]}"/>
+  ${eye(156,23,.8)} ${smile(152,33,9)}
+  <circle cx="75" cy="88" r="4" fill="${c[2]}" opacity=".5"/>
+  <circle cx="95" cy="82" r="4" fill="${c[2]}" opacity=".5"/>
+  <circle cx="108" cy="94" r="4" fill="${c[2]}" opacity=".5"/>`,
+ cera:c=>`${ground()}
+  <path d="M40 80 q-26 10 -32 28 q16 4 32 -8 z" fill="${c[0]}"/>
+  <ellipse cx="85" cy="95" rx="42" ry="27" fill="${c[0]}"/>
+  <ellipse cx="85" cy="102" rx="28" ry="15" fill="${c[1]}"/>
+  <path d="M112 50 a30 30 0 0 1 32 44 l-36 0 z" fill="${c[2]}"/>
+  <circle cx="134" cy="80" r="23" fill="${c[0]}"/>
+  <path d="M148 62 q4 -14 12 -16 q2 10 -4 18 z" fill="${c[1]}"/>
+  <path d="M126 60 q2 -12 9 -14 q3 9 -2 16 z" fill="${c[1]}"/>
+  <path d="M150 92 q10 2 10 10 q-8 4 -14 -2 z" fill="${c[1]}"/>
+  <rect x="66" y="112" width="13" height="18" rx="6" fill="${c[2]}"/>
+  <rect x="98" y="112" width="13" height="18" rx="6" fill="${c[2]}"/>
+  ${eye(136,78,.9)} ${smile(136,92,10)}`,
+ stego:c=>`${ground()}
+  <path d="M60 62 l10 -22 10 22 z M85 52 l11 -26 11 26 z M112 56 l10 -22 10 22 z M136 66 l8 -18 8 18 z" fill="${c[2]}"/>
+  <ellipse cx="95" cy="90" rx="46" ry="28" fill="${c[0]}"/>
+  <ellipse cx="95" cy="98" rx="32" ry="16" fill="${c[1]}"/>
+  <path d="M48 92 q-26 8 -32 26 q16 2 32 -10 l4 -8 z" fill="${c[0]}"/>
+  <path d="M20 108 l-8 -8 M24 114 l-10 -4" stroke="${c[2]}" stroke-width="4" stroke-linecap="round"/>
+  <circle cx="142" cy="86" r="16" fill="${c[0]}"/>
+  <rect x="72" y="110" width="13" height="20" rx="6" fill="${c[2]}"/>
+  <rect x="104" y="110" width="13" height="20" rx="6" fill="${c[2]}"/>
+  ${eye(146,82,.8)} ${smile(144,94,9)}`,
+ anky:c=>`${ground()}
+  <ellipse cx="95" cy="95" rx="50" ry="28" fill="${c[0]}"/>
+  <ellipse cx="95" cy="104" rx="36" ry="15" fill="${c[1]}"/>
+  <circle cx="72" cy="80" r="7" fill="${c[2]}"/><circle cx="95" cy="72" r="7" fill="${c[2]}"/>
+  <circle cx="118" cy="80" r="7" fill="${c[2]}"/><circle cx="84" cy="92" r="5" fill="${c[2]}"/>
+  <circle cx="107" cy="92" r="5" fill="${c[2]}"/>
+  <path d="M48 98 q-22 2 -30 12" stroke="${c[0]}" stroke-width="10" fill="none" stroke-linecap="round"/>
+  <circle cx="16" cy="112" r="10" fill="${c[2]}"/>
+  <circle cx="148" cy="92" r="17" fill="${c[0]}"/>
+  <rect x="72" y="112" width="13" height="18" rx="6" fill="${c[2]}"/>
+  <rect x="106" y="112" width="13" height="18" rx="6" fill="${c[2]}"/>
+  ${eye(152,88,.8)} ${smile(150,100,9)}`,
+ spino:c=>`${ground()}
+  <path d="M55 82 Q95 20 138 80 z" fill="${c[2]}"/>
+  <path d="M62 80 Q95 34 130 78" stroke="${c[1]}" stroke-width="3" fill="none" opacity=".7"/>
+  <ellipse cx="95" cy="92" rx="45" ry="26" fill="${c[0]}"/>
+  <ellipse cx="95" cy="100" rx="30" ry="14" fill="${c[1]}"/>
+  <path d="M55 90 q-28 8 -36 26 q18 2 34 -10 z" fill="${c[0]}"/>
+  <path d="M132 76 q22 -4 30 4 q-8 10 -26 8 z" fill="${c[0]}"/>
+  <rect x="76" y="110" width="12" height="20" rx="6" fill="${c[0]}"/>
+  <rect x="104" y="110" width="12" height="20" rx="6" fill="${c[0]}"/>
+  ${eye(140,78,.85)} ${smile(142,88,10)}`,
+ ptero:c=>`
+  <path d="M100 70 Q45 30 12 58 q28 4 46 26 z" fill="${c[0]}"/>
+  <path d="M100 70 Q155 30 188 58 q-28 4 -46 26 z" fill="${c[0]}"/>
+  <ellipse cx="100" cy="82" rx="24" ry="18" fill="${c[0]}"/>
+  <ellipse cx="100" cy="87" rx="15" ry="10" fill="${c[1]}"/>
+  <circle cx="100" cy="56" r="15" fill="${c[0]}"/>
+  <path d="M108 46 q16 -12 22 -8 q-4 10 -16 14 z" fill="${c[2]}"/>
+  <path d="M92 62 q-12 4 -16 12 q10 2 18 -4 z" fill="${c[1]}"/>
+  <path d="M92 96 l-6 14 M108 96 l6 14" stroke="${c[2]}" stroke-width="5" stroke-linecap="round"/>
+  ${eye(102,53,.8)} ${smile(96,64,8)}
+  <ellipse cx="100" cy="128" rx="60" ry="6" fill="rgba(45,106,79,.12)"/>`,
+ marine:c=>`
+  <path d="M0 118 q25 -8 50 0 t50 0 t50 0 t50 0 v22 h-200 z" fill="#A8DCEF"/>
+  <ellipse cx="95" cy="88" rx="46" ry="24" fill="${c[0]}"/>
+  <ellipse cx="95" cy="95" rx="32" ry="13" fill="${c[1]}"/>
+  <path d="M52 86 q-24 -2 -34 10 q14 8 32 4 z" fill="${c[0]}"/>
+  <circle cx="138" cy="74" r="20" fill="${c[0]}"/>
+  <path d="M148 82 q12 0 14 8 q-9 5 -18 0 z" fill="${c[1]}"/>
+  <path d="M80 106 q-6 12 -18 12 q4 -12 10 -16 z" fill="${c[2]}"/>
+  <path d="M116 104 q-2 12 -14 14 q2 -12 8 -16 z" fill="${c[2]}"/>
+  <path d="M92 66 l6 -14 8 12 z" fill="${c[2]}"/>
+  ${eye(142,70,.85)} ${smile(140,84,10)}
+  <circle cx="162" cy="52" r="4" fill="#A8DCEF"/><circle cx="170" cy="42" r="3" fill="#A8DCEF"/>`,
+ pachy:c=>`${ground()}
+  <path d="M148 70 q22 -10 30 -2 l-12 6 6 8 -14 0 z" fill="${c[0]}"/>
+  <ellipse cx="95" cy="92" rx="38" ry="26" fill="${c[0]}"/>
+  <ellipse cx="95" cy="100" rx="26" ry="14" fill="${c[1]}"/>
+  <path d="M64 88 q-30 6 -40 26 q20 4 38 -10 z" fill="${c[0]}"/>
+  <circle cx="132" cy="60" r="21" fill="${c[0]}"/>
+  <path d="M118 46 a21 16 0 0 1 28 0 q-2 -18 -14 -18 t-14 18 z" fill="${c[2]}"/>
+  <circle cx="116" cy="48" r="3.5" fill="${c[2]}"/><circle cx="148" cy="48" r="3.5" fill="${c[2]}"/>
+  <circle cx="112" cy="56" r="3" fill="${c[2]}"/><circle cx="152" cy="56" r="3" fill="${c[2]}"/>
+  <rect x="82" y="110" width="11" height="20" rx="5" fill="${c[2]}"/>
+  <rect x="104" y="110" width="11" height="20" rx="5" fill="${c[2]}"/>
+  ${eye(134,58,.85)} ${smile(132,72,10)}`,
+ hadro:c=>`${ground()}
+  <path d="M150 72 q22 -12 30 -4 l-12 8 6 8 -14 0 z" fill="${c[0]}"/>
+  <ellipse cx="95" cy="92" rx="42" ry="27" fill="${c[0]}"/>
+  <ellipse cx="95" cy="100" rx="28" ry="15" fill="${c[1]}"/>
+  <path d="M60 88 q-30 8 -38 28 q18 2 34 -10 z" fill="${c[0]}"/>
+  <circle cx="134" cy="60" r="21" fill="${c[0]}"/>
+  <path d="M140 42 q14 -22 26 -18 q-2 16 -16 24 z" fill="${c[2]}"/>
+  <path d="M144 70 q12 -2 16 6 q-8 6 -18 2 z" fill="${c[1]}"/>
+  <rect x="80" y="110" width="12" height="20" rx="6" fill="${c[2]}"/>
+  <rect x="104" y="110" width="12" height="20" rx="6" fill="${c[2]}"/>
+  ${eye(136,57,.85)} ${smile(136,72,10)}`
+};
+
+function dinoSVG(d){
+  return `<svg viewBox="0 0 200 140" role="img" aria-label="${d.n}のイラスト">${ART[d.type](d.c)}</svg>`;
+}
+
+/* ================= 状態 ================= */
+const stars=new Set();   // クイズ正解した恐竜（メモリ内のみ）
+let okCount=0, streak=0, current=null, locked=false;
+
+const FOODICON={"にく":"🍖","くさ":"🌿","さかな":"🐟"};
+
+/* ================= ずかん ================= */
+function renderGrid(){
+  const g=document.getElementById('grid');
+  g.innerHTML=DINOS.map((d,i)=>`
+    <div class="dcard" onclick="openDetail(${i})">
+      <span class="foodtag">${FOODICON[d.food]}</span>
+      <span class="badge">${stars.has(d.n)?"⭐":""}</span>
+      ${artHTML(d)}
+      <div class="dname">${d.n}</div>
+    </div>`).join("");
+  document.getElementById('starCount').textContent=`（いま ${stars.size}／${DINOS.length}こ）`;
+}
+function openDetail(i){
+  const d=DINOS[i];
+  document.getElementById('detailBox').innerHTML=`
+    ${artHTML(d)}
+    <h2>${d.n} ${stars.has(d.n)?"⭐":""}</h2>
+    <p class="yomi">（${d.y}）</p>
+    <div class="facts">
+      <span class="fact">${FOODICON[d.food]} ${d.food}を たべる</span>
+      <span class="fact">📏 ながさ ${d.len}</span>
+      <span class="fact">🕰️ ${d.era}</span>
+    </div>
+    <div class="hitokoto">💡 ${d.f}</div>
+    <div class="btnrow">
+      <button class="bigbtn speak" onclick="say('${d.n}')">🔊 なまえを きく</button>
+      <button class="bigbtn close" onclick="closeDetail()">とじる</button>
+    </div>`;
+  document.getElementById('overlay').classList.add('show');
+  say(d.n);
+}
+function closeDetail(){document.getElementById('overlay').classList.remove('show');}
+
+/* ================= よみあげ ================= */
+function say(text){
+  try{
+    speechSynthesis.cancel();
+    const u=new SpeechSynthesisUtterance(text);
+    u.lang="ja-JP"; u.rate=0.85; u.pitch=1.1;
+    speechSynthesis.speak(u);
+  }catch(e){}
+}
+
+/* ================= クイズ ================= */
+function shuffle(a){for(let i=a.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[a[i],a[j]]=[a[j],a[i]];}return a;}
+function newQuiz(){
+  locked=false;
+  current=DINOS[Math.floor(Math.random()*DINOS.length)];
+  const others=shuffle(DINOS.filter(d=>d.n!==current.n)).slice(0,2);
+  const opts=shuffle([current,...others]);
+  document.getElementById('quizArt').innerHTML=artHTML(current);
+  document.getElementById('choices').innerHTML=opts.map(o=>
+    `<button class="choice" onclick="answer(this,'${o.n}')">${o.n}</button>`).join("");
+  document.getElementById('result').textContent="";
+  document.getElementById('nextBtn').classList.remove('show');
+}
+function answer(btn,name){
+  if(locked)return; locked=true;
+  const good=name===current.n;
+  document.querySelectorAll('.choice').forEach(b=>{
+    if(b.textContent===current.n)b.classList.add('good');
+    else if(b===btn)b.classList.add('bad');
+  });
+  const r=document.getElementById('result');
+  if(good){
+    okCount++; streak++; stars.add(current.n);
+    r.textContent="⭕ せいかい！すごい！"; r.style.color="#E0703A";
+    say("せいかい！"+current.n);
+    confetti();
+  }else{
+    streak=0;
+    r.textContent=`こたえは「${current.n}」だよ`; r.style.color="#4E7A99";
+    say("ざんねん。こたえは、"+current.n);
+  }
+  document.getElementById('okNum').textContent=okCount;
+  document.getElementById('streakNum').textContent=streak;
+  document.getElementById('nextBtn').classList.add('show');
+}
+function confetti(){
+  const em=["🎉","⭐","🦖","🦕","✨"];
+  for(let i=0;i<14;i++){
+    const s=document.createElement('span');
+    s.className="confetti";
+    s.textContent=em[Math.floor(Math.random()*em.length)];
+    s.style.left=Math.random()*100+"vw";
+    s.style.animationDelay=(Math.random()*.4)+"s";
+    document.body.appendChild(s);
+    setTimeout(()=>s.remove(),2200);
+  }
+}
+
+/* ================= しゃしんモード（Wikipediaから取得） ================= */
+let photoMode=false, photoLoaded=false;
+const photoURL={};
+/* 記事名が恐竜名と異なる場合の対応表 */
+const WIKI={"フタバサウルス":"フタバスズキリュウ","アーケオプテリクス":"始祖鳥","ミンミ":"ミンミ (恐竜)"};
+
+async function fetchPhoto(d){
+  if(photoURL[d.n]!==undefined) return;
+  try{
+    const t=WIKI[d.n]||d.n;
+    const r=await fetch("https://ja.wikipedia.org/api/rest_v1/page/summary/"+encodeURIComponent(t));
+    if(!r.ok) throw 0;
+    const j=await r.json();
+    let src=(j.thumbnail&&j.thumbnail.source)||null;
+    if(src) src=src.replace(/\/(\d+)px-/, "/480px-");
+    photoURL[d.n]=src;
+  }catch(e){ photoURL[d.n]=null; }
+}
+
+function artHTML(d){
+  if(photoMode&&photoURL[d.n]){
+    return `<img class="photo" src="${photoURL[d.n]}" alt="${d.n}" loading="lazy" onerror="this.outerHTML=DINO_FALLBACK['${d.n}']">`;
+  }
+  return dinoSVG(d);
+}
+const DINO_FALLBACK={};
+DINOS.forEach(d=>DINO_FALLBACK[d.n]=dinoSVG(d));
+
+async function togglePhoto(){
+  const st=document.getElementById('photoStatus');
+  const btn=document.getElementById('modeBtn');
+  if(!photoMode){
+    if(!photoLoaded){
+      st.textContent="しゃしんを よみこみちゅう…📡";
+      btn.disabled=true;
+      await Promise.allSettled(DINOS.map(fetchPhoto));
+      photoLoaded=true;
+      btn.disabled=false;
+    }
+    photoMode=true;
+    const found=DINOS.filter(d=>photoURL[d.n]).length;
+    st.textContent=`しゃしん：Wikipedia（ウィキペディア）より・${found}／${DINOS.length}しゅるい`;
+    btn.textContent="🎨 イラスト";
+  }else{
+    photoMode=false;
+    st.textContent="";
+    btn.textContent="📷 しゃしん";
+  }
+  renderGrid();
+  if(document.getElementById('quiz').style.display!=="none"&&current&&!locked){
+    document.getElementById('quizArt').innerHTML=artHTML(current);
+  }
+}
+
+/* ================= タブ ================= */
+function showZukan(){
+  document.getElementById('zukan').style.display="";
+  document.getElementById('quiz').style.display="none";
+  document.getElementById('tabZukan').classList.add('on');
+  document.getElementById('tabQuiz').classList.remove('on');
+  renderGrid();
+}
+function showQuiz(){
+  document.getElementById('zukan').style.display="none";
+  document.getElementById('quiz').style.display="";
+  document.getElementById('tabQuiz').classList.add('on');
+  document.getElementById('tabZukan').classList.remove('on');
+  newQuiz();
+}
+
+renderGrid();
+</script>
+</body>
+</html>
